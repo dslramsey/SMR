@@ -161,13 +161,6 @@ custom_zs_sampler <- nimbleFunction(
 #----------------------------
 
 mymode<- function (x) 
-{ # for discrete x only
-  d <- table(x)
-  allN<- sort(unique(x))
-  allN[which.max(d)]
-}
-
-mymode2<- function (x) 
 { # for continuous x only
   d <- density(x)
   mx<- which.max(d$y)

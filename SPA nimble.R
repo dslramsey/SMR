@@ -118,7 +118,7 @@ samp<- runMCMC(Cmodel, niter = ni, nburnin = nb, nchains = nc, thin=nt, inits = 
                samplesAsCodaMCMC = T)
 
 foxes<- samp
-saveRDS(foxes, "results/foxes.rds")
+saveRDS(foxes, "foxes.rds")
 
 library(MCMCvis)
 library(ggmcmc)
@@ -126,8 +126,6 @@ library(gridExtra)
 
 MCMCsummary(foxes, params=c("D","N","g0","sigma"), digits=3, n.eff=TRUE,
             func=mymode, func_name = "Mode")
-
-
 
 S<- ggs(samp)
 
@@ -153,86 +151,5 @@ p1<- ggs_autocorrelation(S, family="g0")
 p2<- ggs_autocorrelation(S, family="sigma")
 
 grid.arrange(p1, p2, ncol=2)
-
-#-----------------------------------------------------  
-
-load("foxHR")
-load("cats")
-load("dogs")
-
-samp<- mcmc.list(sims[[1]],sims[[2]],sims[[3]])
-parnames<- varnames(samp)
-samp<- as.matrix(samp)
-
-# expected foliar biomass
-N<- samp[,grep("N",parnames)]
-g0<- samp[,grep("g0",parnames)]
-sigma<- samp[, grep("sigma",parnames)]
-w<- samp[, grep("w",parnames)]
-S<- samp[, grep("S",parnames)]
-
-A<- (xlim[2]-xlim[1]) * (ylim[2]-ylim[1])
-D<- N/A	
-
-win.graph(10,10)
-par(mfrow=c(2,2),pty='s')
-hist(N,nclass=50,main="",xlim=c(0,300),xlab="Parameter value",ylab="Probability density",
-     probability=T,las=0)
-mtext(expression(paste("Abundance (",italic(hat(N)),")")))
-
-plot(density(D),main="",xlim=c(0,2),xlab="Parameter value",ylab="Probability density",
-     las=0,lwd=2,bty="n")
-mtext(expression(paste("Density (",italic(hat(D)),")")))
-
-plot(density(g0),main="",xlim=c(0,0.5),xlab="Parameter value",ylab="Probability density",
-     las=0,lwd=2,bty="n")
-mtext(expression(paste(g(0))))
-
-plot(density(sigma),main="",xlim=c(0,5),xlab="Parameter value",ylab="Probability density",
-     lwd=2,bty="n", ylim=c(0,4))
-#plot(function(x) dunif(x, 0, 5), 0, 5, xlim=c(0, 3),add=T,col="grey80",lty=2)
-plot(function(x) dgamma(x, 18, 30), 0, 5, xlim=c(0, 3),add=T,col="grey80",lty=2)
-mtext(expression(paste(sigma)))
-
-
-mymode(N)  # Posterior mode of N
-mean(N)
-median(N)
-sd(N)
-quantile(N,c(0.025,0.975))
-
-# Density
-mymode2(D) 
-mean(D)
-median(D)
-sd(D)
-quantile(D,c(0.025,0.975))
-
-mean(g0)
-median(g0)
-sd(g0)
-quantile(g0,c(0.025,0.975))
-
-mean(sigma)
-median(sigma)
-sd(sigma)
-quantile(sigma,c(0.025,0.975))
-
-
-n<- rowSums(foxobs,na.rm=T)
-
-win.graph(8,8)
-obj<- list(Sx=S[,1:300],Sy=S[,301:600],z=w)
-SCRdensity(obj,Xl=xlim[1],Xu=xlim[2],Yl=ylim[1],Yu=ylim[2],scalein=1,scaleout=1)
-points(locs[,1],locs[,2])
-points(locs[n>0,1],locs[n>0,2],pch=16)
-mtext("Density",side=4,las=1,line=1,at=c(686,6047.5))
-mtext("Easting",side=1,line=2)
-mtext("Northing",side=2,line=2)
-#------------------------
-sims<- list(samp1=samp1,samp2=samp2,samp3=samp3)
-
-save(sims, file="foxIP") #uninformative prior
-
 
 
