@@ -8,6 +8,8 @@ This repository contains data and code from:
 
 Forsyth, D.M., Ramsey, D.S.L., Woodford, L. (2018). "Using Spatial Capture-Recapture Models to Estimate Abundances, Densities, and Interspecific Associations in a Carnivore Community" *Journal of Wildlife Management*
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1459045.svg)](https://doi.org/10.5281/zenodo.1459045)
+
 Getting started
 ---------------
 
