@@ -107,21 +107,19 @@ FC.cl<- apply(FC.res,1,quantile, c(0.025,0.975))
 DC<- apply(DC.res,1,mean)
 DC.cl<- apply(DC.res,1,quantile, c(0.025,0.975))
 
-
+fd.results<- data.frame(r=r,pr=FD,lcl=FD.cl[1,],ucl=FD.cl[2,],pair="Fox-Dog")
+fc.results<- data.frame(r=r,pr=FC,lcl=FC.cl[1,],ucl=FC.cl[2,],pair="Fox-Cat")
+dc.results<- data.frame(r=r,pr=DC,lcl=DC.cl[1,],ucl=DC.cl[2,],pair="Dog-Cat")
+mc.results<- bind_rows(fd.results,fc.results,dc.results)
 
 win.graph(10,10)
-plot(0,0,type="n",axes=F,xlim=c(0,2.5),ylim=c(0.6,1.4),xlab=expression(paste(italic(r)," (km)")),
-     ylab=expression(paste(italic(P[i][j](r)))))
-polygon(c(r,rev(r)),c(FD.cl[1,],rev(FD.cl[2,])),col="grey90",border="NA")
-lines(r,FD,lwd=2,col="red")
-polygon(c(r,rev(r)),c(FC.cl[1,],rev(FC.cl[2,])),col="grey80",border="NA")
-lines(r,FC,lwd=2,col="blue")
-polygon(c(r,rev(r)),c(DC.cl[1,],rev(DC.cl[2,])),col="grey70",border="NA")
-lines(r,DC,lwd=2,col="green")
-abline(h=1,lty=2)
-axis(1,xaxs="i",yaxs="i")
-axis(2,las=1,xaxs="i",yaxs="i")
-legend(0.5,1.4,legend=c("Dingo-Fox","Fox-Cat","Dingo-Cat"),lty=1,col=c("red","blue","green"),bty="n")
+mc.results %>% ggplot(aes(r, pr, colour=pair)) +
+  geom_line() +
+  geom_ribbon(aes(ymin=lcl,ymax=ucl, colour=pair),alpha=0.25, fill="grey40",linetype="blank") +
+  ylab(expression(p[ij]^r)) +
+  xlab("Time") +
+  geom_hline(aes(yintercept = 1),linetype=2, size=1) +
+  theme_bw()
 
 
 #------------------------------------------------------------------------------
