@@ -4,12 +4,15 @@ library(spatstat)
 library(nimble)
 library(dplyr)
 
+# Some of the following is based on ideas for tuning the Nimble MCMC algorithm given at
+# https://nature.berkeley.edu/~pdevalpine/SCR_NIMBLE_ideas/SCR_NIMBLE_ideas.html
+# and uses custom MCMC samplers provided in Nimble_functions.r
 #================================================================================
 #
 # Gudgenby Dingo density estimation
 #
 #================================================================================
-source("Nimble Functions.r") # required for nimble model
+source("Nimble_functions.r") # required for nimble model
 source("SMR_functions.r")
 
 hist<- read_excel("data/Camera Detections modified.xlsx",sheet="Wild dogs",skip=2)
@@ -87,8 +90,7 @@ code<- nimbleCode({
     }
     n[1:J] ~ dbin_by_row(Ptrap[1:J],K[1:J]) 
   
-    sigma ~ dinvgamma(2.27, 2.14)
-    #sigma ~ dunif(0,10)
+    sigma ~ dunif(0,10)
     g0 ~ dbeta(2, 2)
     psi ~ dbeta(2,2)
     psim  ~ dbeta(2,2)
@@ -118,9 +120,10 @@ inits<- list(sigma=1,g0=0.1,psi=0.5,psim=0.5,wm=c(rep(1,dim(Yk)[1]),rep(0,mmax))
 Rmodel <- nimbleModel(code=code, constants=constants, data=data, inits=inits, check = TRUE)
 Rmcmc<- compileNimble(Rmodel)
 #------------------------------------------------------------------------------------------
+# MCMC configeration # 1
+#------------------------------------------------------------------------------------------
 mcmcspec <- configureMCMC(Rmodel, monitors=c("D","N","Nm","Nu","g0","sigma","w","wm","Sm","S"),
                           onlySlice = T)
-
 
 mcmcspec$removeSamplers("w", print=FALSE)
 mcmcspec$removeSamplers('S', print=FALSE)
@@ -153,22 +156,38 @@ for(i in seq_along(sNodePairs)) mcmcspec$addSampler(target = sNodePairs[[i]],
 Cmcmc <- buildMCMC(mcmcspec)
 Cmodel <- compileNimble(Cmcmc, project = Rmodel, resetFunctions = TRUE)
 
-#========================
-# code for binary sampler and block sampling for S
-mcmcspec <- configureMCMC(Rmodel, monitors=c("N","D","g0","sigma","psi"), onlySlice = T)
+#------------------------------------------------------------------------------------------
+# alternative MCMC configeration # 2
+#------------------------------------------------------------------------------------------
+
+mcmcspec <- configureMCMC(Rmodel, monitors=c("D","N","Nm","Nu","g0","sigma","w","wm","Sm","S"),
+                          onlySlice = T)
 
 mcmcspec$removeSamplers("w", print = FALSE)
 Nodes <- Rmodel$expandNodeNames("w")
 for(Node in Nodes) mcmcspec$addSampler(target = Node, type = "binary", print=FALSE)
+
+mcmcspec$removeSamplers("wm", print = FALSE)
+Nodes <- Rmodel$expandNodeNames("wm")
+for(Node in Nodes) mcmcspec$addSampler(target = Node, type = "binary", print=FALSE)
+
 ## remove the default samplers for s
 mcmcspec$removeSamplers('S', print = FALSE)
 sNodePairs <- split( matrix(Rmodel$expandNodeNames('S'), ncol = 2), 1:M )
 for(i in seq_along(sNodePairs)) mcmcspec$addSampler(target = sNodePairs[[i]], type = 'RW_block', 
                                                     control = list(adaptScaleOnly = TRUE), print=FALSE)
+
+mcmcspec$removeSamplers('Sm', print = FALSE)
+sNodePairs <- split( matrix(Rmodel$expandNodeNames('Sm'), ncol = 2), 1:m )
+for(i in seq_along(sNodePairs)) mcmcspec$addSampler(target = sNodePairs[[i]], type = 'RW_block', 
+                                                    control = list(adaptScaleOnly = TRUE), print=FALSE)
+
 Cmcmc <- buildMCMC(mcmcspec)
 Cmodel <- compileNimble(Cmcmc, project = Rmodel, resetFunctions = TRUE)
 
-#----------------------
+#------------------------------------------------------------------------------------------
+# Sampling
+#------------------------------------------------------------------------------------------
 ni<- 110000
 nb<- 10000
 nt<- 10
@@ -187,7 +206,7 @@ library(MCMCvis)
 library(ggmcmc)
 library(gridExtra)
 
-MCMCsummary(dogs, params=c("D","N","Nm","Nu","g0","sigma"), digits=3, n.eff=TRUE,
+MCMCsummary(samp, params=c("D","N","Nm","Nu","g0","sigma"), digits=3, n.eff=TRUE,
             func=mymode, func_name = "Mode")
 
 win.graph(12,12)
@@ -262,22 +281,6 @@ J<- nrow(Yu)
 yaug<- matrix(0,mmax,J)
 ym<- rbind(ym,yaug)
 
-#----------------------------
-constants <- list(M=M,m=m,J=J)
-
-data<- list(ym=ym,n=n,X=X,K=K,xlim=xlim,ylim=ylim,A=A)
-
-sx.init<- runif(M, xlim[1], xlim[2])
-sy.init<- runif(M, ylim[1], ylim[2])
-S.init<- cbind(sx.init,sy.init)
-
-smx.init<- runif(m, xlim[1], xlim[2])
-smy.init<- runif(m, ylim[1], ylim[2])
-Sm.init<- cbind(smx.init,smy.init)
-
-inits<- list(sigma=1,g0=0.1,psi=0.5,psim=0.5,wm=c(rep(1,dim(Yk)[1]),rep(0,mmax)),
-             w=rbinom(M,1,0.5),Sm=Sm.init,S=S.init)
-
 #-----------------------------
 ## 
 
@@ -301,6 +304,9 @@ inits<- list(sigma=1,g0=0.1,psi=0.5,psim=0.5,wm=c(rep(1,dim(Yk)[1]),rep(0,mmax))
 Rmodel <- nimbleModel(code=code, constants=constants, data=data, inits=inits, check = TRUE)
 Rmcmc<- compileNimble(Rmodel)
 #------------------------------------------------------------------------------------------
+# MCMC configeration # 1
+#------------------------------------------------------------------------------------------
+
 mcmcspec <- configureMCMC(Rmodel, monitors=c("D","N","Nm","Nu","g0","sigma","w","wm","Sm","S"),
                           onlySlice = T)
 
@@ -336,8 +342,10 @@ for(i in seq_along(sNodePairs)) mcmcspec$addSampler(target = sNodePairs[[i]],
 Cmcmc <- buildMCMC(mcmcspec)
 Cmodel <- compileNimble(Cmcmc, project = Rmodel, resetFunctions = TRUE)
 
-#========================
-# code for binary sampler and block sampling for S
+#------------------------------------------------------------------------------------------
+# Alternative configeration # 2
+#------------------------------------------------------------------------------------------
+
 mcmcspec <- configureMCMC(Rmodel, monitors=c("N","D","g0","sigma","psi"), onlySlice = T)
 
 mcmcspec$removeSamplers("w", print = FALSE)
@@ -351,7 +359,10 @@ for(i in seq_along(sNodePairs)) mcmcspec$addSampler(target = sNodePairs[[i]], ty
 Cmcmc <- buildMCMC(mcmcspec)
 Cmodel <- compileNimble(Cmcmc, project = Rmodel, resetFunctions = TRUE)
 
-#----------------------
+#------------------------------------------------------------------------------------------
+# Sampling
+#------------------------------------------------------------------------------------------
+
 ni<- 110000
 nb<- 10000
 nt<- 10

@@ -3,7 +3,11 @@ library(readxl)
 library(spatstat)
 library(dplyr)
 
-source("Nimble Functions.r") # required for nimble model
+# Some of the following is based on ideas for tuning the Nimble MCMC algorithm given at
+# https://nature.berkeley.edu/~pdevalpine/SCR_NIMBLE_ideas/SCR_NIMBLE_ideas.html
+# and uses custom MCMC samplers provided in Nimble_functions.r
+
+source("Nimble_functions.r") # required for nimble model
 
 foxobs<- read.csv("data/gudgenby foxes.csv")
 cams<- read_excel("data/gudgenby_camsUTM_revised.xlsx")
@@ -75,6 +79,9 @@ inits <- list(sigma=1,g0=0.1,psi=0.5,w=rbinom(M,1,0.5),S=S.init)
 Rmodel <- nimbleModel(code=code, constants=constants, data=data, inits=inits, check = TRUE)
 Rmcmc<- compileNimble(Rmodel)
 #------------------------------------------------------------------------------------------
+# MCMC configeration # 1
+#------------------------------------------------------------------------------------------
+
 mcmcspec <- configureMCMC(Rmodel, monitors=c("N","D","g0","sigma","psi","S","w"), onlySlice = T)
 
 
@@ -86,20 +93,24 @@ sNodePairs <- split( matrix(Rmodel$expandNodeNames('S'), ncol = 2), 1:M)
 for(i in seq_along(wNodes)) mcmcspec$addSampler(target = wNodes[i], type = custom_zs_sampler, 
                             control = list(sNodes = sNodePairs[[i]], birthProb = 0.5, deathProb = 0.5 ))
 for(i in seq_along(sNodePairs)) mcmcspec$addSampler(target = sNodePairs[[i]], 
-                                type = custom_s_with_indicator_sampler, 
-                      control = list(scaleFactor = 0.5, scaleNode = 'sigma', indicatorNode = wNodes[i]))
+                  type = custom_s_with_indicator_sampler, 
+                  control = list(scaleFactor = 0.5, scaleNode = 'sigma', indicatorNode = wNodes[i]))
 
 Cmcmc <- buildMCMC(mcmcspec)
 Cmodel <- compileNimble(Cmcmc, project = Rmodel, resetFunctions = TRUE)
 
-#========================
-# code for binary sampler and block sampling for S
-mcmcspec <- configureMCMC(Rmodel, monitors=c("N","D","g0","sigma","psi"), onlySlice = T)
+#------------------------------------------------------------------------------------------
+# Alternative MCMC configeration # 2
+#------------------------------------------------------------------------------------------
 
+mcmcspec <- configureMCMC(Rmodel, monitors=c("N","D","g0","sigma","psi","S","w"), onlySlice = T)
+
+# binary sampler for w
 mcmcspec$removeSamplers("w", print = FALSE)
 Nodes <- Rmodel$expandNodeNames("w")
 for(Node in Nodes) mcmcspec$addSampler(target = Node, type = "binary", print=FALSE)
-## remove the default samplers for s
+
+## use a block sampler for each Sx,Sy pair 
 mcmcspec$removeSamplers('S', print = FALSE)
 sNodePairs <- split( matrix(Rmodel$expandNodeNames('S'), ncol = 2), 1:M )
 for(i in seq_along(sNodePairs)) mcmcspec$addSampler(target = sNodePairs[[i]], type = 'RW_block', 
@@ -121,6 +132,7 @@ samp<- runMCMC(Cmodel, niter = ni, nburnin = nb, nchains = nc, thin=nt, inits = 
 foxes<- samp
 saveRDS(foxes, "foxes.rds")
 
+#-------------------
 library(MCMCvis)
 library(ggmcmc)
 library(gridExtra)

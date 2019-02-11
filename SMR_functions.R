@@ -71,3 +71,4 @@ capt.array<- function(ch, nocc, ntraps) {
     }}
   Yk
 }
+

@@ -1,10 +1,10 @@
-
+library(readxl)
 library(spatstat)
 library(MCMCvis)
+library(tidyverse)
 # fit nonstationary marked Poisson process
 
-cams<- read.csv("data/gudgenby_camsUTM_revised.csv")
-names(cams)<- c("cam","east","north")
+cams<- read_excel("data/gudgenby_camsUTM_revised.xlsx")
 
 cams<- cams[,c(2,3)]/1000 #km
 xlim<- range(cams[,1])
@@ -107,17 +107,18 @@ FC.cl<- apply(FC.res,1,quantile, c(0.025,0.975))
 DC<- apply(DC.res,1,mean)
 DC.cl<- apply(DC.res,1,quantile, c(0.025,0.975))
 
-fd.results<- data.frame(r=r,pr=FD,lcl=FD.cl[1,],ucl=FD.cl[2,],pair="Fox-Dog")
-fc.results<- data.frame(r=r,pr=FC,lcl=FC.cl[1,],ucl=FC.cl[2,],pair="Fox-Cat")
-dc.results<- data.frame(r=r,pr=DC,lcl=DC.cl[1,],ucl=DC.cl[2,],pair="Dog-Cat")
+fd.results<- data.frame(r=r,pr=FD,lcl=FD.cl[1,],ucl=FD.cl[2,],Pair="Fox-Dog")
+fc.results<- data.frame(r=r,pr=FC,lcl=FC.cl[1,],ucl=FC.cl[2,],Pair="Fox-Cat")
+dc.results<- data.frame(r=r,pr=DC,lcl=DC.cl[1,],ucl=DC.cl[2,],Pair="Dog-Cat")
 mc.results<- bind_rows(fd.results,fc.results,dc.results)
 
-win.graph(10,10)
-mc.results %>% ggplot(aes(r, pr, colour=pair)) +
+
+win.graph(12,10)
+mc.results %>% ggplot(aes(r, pr, colour=Pair)) +
   geom_line() +
-  geom_ribbon(aes(ymin=lcl,ymax=ucl, colour=pair),alpha=0.25, fill="grey40",linetype="blank") +
-  ylab(expression(p[ij]^r)) +
-  xlab("Time") +
+  geom_ribbon(aes(ymin=lcl,ymax=ucl, colour=Pair),alpha=0.25, fill="grey40",linetype="blank") +
+  ylab(expression(paste(italic(p[i][j](r))))) +
+  xlab(expression(paste(italic(r), (m)))) +
   geom_hline(aes(yintercept = 1),linetype=2, size=1) +
   theme_bw()
 
