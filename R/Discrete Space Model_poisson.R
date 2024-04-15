@@ -139,8 +139,8 @@ conf$removeSamplers(c("z"), print = FALSE)
 Nodes <- Rmodel$expandNodeNames("z")
 for(Node in Nodes) conf$addSampler(target = Node, type = "binary", print=FALSE)
 
-conf$removeSamplers(c('alpha','alpha1'), print=FALSE)
-conf$addSampler(target=c('alpha','alpha1'), type='AF_slice')
+conf$removeSamplers(c('alpha','alpha1','beta0'), print=FALSE)
+conf$addSampler(target=c('alpha','alpha1','beta0'), type='AF_slice')
 
 conf$resetMonitors()
 conf$addMonitors(c("lam0","sigma","beta0","D","Nm","Nu","N"))
